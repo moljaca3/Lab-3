@@ -1,0 +1,133 @@
+---
+title: "Lab 3"
+author: "Maria Oljaca"
+format: html
+editor: visual
+---
+
+#### Objective: **find the weather station with the highest elevation and look at patterns in the time series of its wind speed and temperature.**
+
+### 1: Read in the Data
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(data.table)
+```
+
+```{r}
+library(devtools)
+```
+
+```{r}
+library(magrittr)
+```
+
+```{r}
+library(leaflet)
+library(lubridate)
+met <- data.table::fread("met_all.gz")
+```
+
+### **2. Check the dimensions, headers, footers. How many columns, rows are there?**
+
+```{r}
+dim(met)
+head(met)
+tail(met)
+```
+
+### **3. Take a look at the variables.**
+
+```{r}
+str(met)
+```
+
+### **4. Take a closer look at the key variables.**
+
+```{r}
+table(met$year)
+table(met$day)
+table(met$hour)
+summary(met$temp)
+summary(met$elev)
+summary(met$wind.sp)
+met[met$elev==9999.0] <- NA
+summary(met$elev)
+```
+
+After replacing 9999.0 values with "NA," the code for missing, we see that the highest weather station is at 4113 meters.
+
+```{r}
+met <- met[temp>-40]
+met2 <- met[order(temp)]
+head(met2)
+```
+
+After removing temperatures colder than -40C, there is still a suspicious -17.2C reading.
+
+### **5. Check the data against an external data source.**
+
+The -17.2C reading is located at latitude 38.767 and longitude -104.3, which is just outside of Colorado Springs, CO.
+
+It seems unlikely that it would be -17.2C in August in Colorado, so lets remove temperatures colder than -15C.
+
+```{r}
+met <- met[temp>-15]
+met2 <- met[order(temp)]
+head(met2)
+```
+
+The new dataset now has a minimum temp of -3C, which is more reasonable.
+
+### **6. Calculate summary statistics**
+
+```{r}
+elev <- met[elev==max(elev), ]
+summary(elev)
+cor(elev$temp, elev$wind.sp, use="complete")
+cor(elev$temp, elev$hour, use="complete")
+cor(elev$wind.sp, elev$day, use="complete")
+cor(elev$wind.sp, elev$hour, use="complete")
+cor(elev$temp, elev$day, use="complete")
+```
+
+### 7. Exploratory Graphs
+
+```{r}
+hist(met$elev, breaks=100)
+hist(met$temp)
+hist(met$wind.sp)
+leaflet(elev) %>%
+  addProviderTiles('OpenStreetMap') %>% 
+  addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
+library(lubridate)
+elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
+summary(elev$datesumm)
+elev <- elev[order(date)]
+head(elev)
+plot(elev$date, elev$temp, type='l')
+plot(elev$date, elev$wind.sp, type='l')
+```
+
+The time-series plot of temperature shows regular fluctuations in temperature, which likely represents the fluctuations in temperature from day to night. The time-series plot of wind speed shows frequent fluctuations in wind speed each day, however the overall trend of wind speed shows less variability up until about August 12th, and greater variability in the later half of the month.
+
+### 8. Ask questions
+
+#### Question: What is the relationship between temperature and elevation?
+
+```{r}
+met_daily <- met %>%
+group_by(USAFID, day) %>%
+summarize(temp = mean(temp), elev = mean(elev)) %>%
+arrange(desc(temp))
+hist(met_daily$elev)
+hist(met_daily$temp)
+plot(met_daily$elev, met_daily$temp, pch=19, cex=0.5)
+mod <- lm(temp ~ elev, data = met_daily)
+abline(mod, lwd=2, col="red")
+```
+
+Looking at the scatter plot, there appears to be an inverse relationship between elevation and temperature (ie, as elevation increases, temperature decreases).
