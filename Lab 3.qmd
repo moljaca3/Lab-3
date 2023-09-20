@@ -1,8 +1,9 @@
 ---
 title: "Lab 3"
 author: "Maria Oljaca"
-format: html
-editor: visual
+format:
+  html:
+    embed-resources: true
 ---
 
 #### Objective: **find the weather station with the highest elevation and look at patterns in the time series of its wind speed and temperature.**
